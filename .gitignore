@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+
+# Flask
+instance/
+migrations/
+
+# Environment
+.env
+
+# Uploads
+backend/uploads/
+
+# Node
+node_modules/
+
+# Vite build
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
