@@ -13,9 +13,9 @@ export default defineConfig({
     server: {
         port: 5173,
         proxy: {
-            '/api': 'http://localhost:8000',
-            '/sanctum': 'http://localhost:8000',
-            '/uploads': 'http://localhost:8000',
+            '/api': 'http://localhost:5000',
+            '/sanctum': 'http://localhost:5000',
+            '/uploads': 'http://localhost:5000',
         },
     },
     build: {
