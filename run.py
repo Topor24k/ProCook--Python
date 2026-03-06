@@ -1,50 +1,51 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# APPLICATION ENTRY POINT - Starts the Flask Development Server
+# APPLICATION ENTRY POINT - Sugdan ang Flask Development Server
+# Simula sa Application - Magsugod sa Flask Development Server
 # ═══════════════════════════════════════════════════════════════════════════
-# This file demonstrates:
-# 1. APPLICATION FACTORY PATTERN: Calls create_app() to get Flask instance
-# 2. ENTRY POINT: Starting point when running 'python run.py'
-# 3. DEVELOPMENT SERVER: Runs Flask's built-in server for testing
+# Kini nga file nagpakita sa (This file demonstrates):
+# 1. APPLICATION FACTORY PATTERN: Magtawag ug create_app() para makuha ang Flask instance
+# 2. ENTRY POINT: Sugdan dire kon magrun ug 'python run.py'
+# 3. DEVELOPMENT SERVER: Magpadagan sa Flask's built-in server para sa testing
 #
-# Usage:
-# - Development: python run.py (starts server on http://0.0.0.0:5000)
-# - Production: Use WSGI server like Gunicorn instead
+# Paggamit (Usage):
+# - Development: python run.py (magsugod sa server sa http://0.0.0.0:5000)
+# - Production: Gamita ang WSGI server sama sa Gunicorn hinuon
 #
-# Connects to:
-# - backend/app.py: create_app() function that builds the Flask application
-# - backend/config.py: Loads configuration based on FLASK_ENV
+# Konektado sa (Connects to):
+# - backend/app.py: create_app() function nga naghimo sa Flask application
+# - backend/config.py: Nag-load sa configuration base sa FLASK_ENV
 # ═══════════════════════════════════════════════════════════════════════════
 
-"""Entry point for running the Flask application."""
+"""Entry point para sa pagpadagan sa Flask application - Sugdan dinhi."""
 
-# Import the application factory function
-# Connects to: backend/app.py where create_app() is defined
+# I-import ang application factory function
+# Konekta sa: backend/app.py diin gi-define ang create_app()
 from backend.app import create_app
 
-# ═══ CREATE FLASK APPLICATION INSTANCE ═══
-# Call the factory function to create and configure Flask app
-# This executes:
-# 1. Configuration loading (backend/config.py)
-# 2. Database initialization (backend/models.py)
-# 3. Extension setup (CORS, Flask-Login, Migrate)
-# 4. Blueprint registration (all routes from backend/routes/)
-# 5. Error handler setup
+# ═══ PAGHIMO UG FLASK APPLICATION INSTANCE (Create Flask App) ═══
+# Tawagun ang factory function para maghimo ug ma-configure ang Flask app
+# Kini magsugod sa (This executes):
+# 1. Configuration loading (backend/config.py) - Pag-load sa settings
+# 2. Database initialization (backend/models.py) - Pag-setup sa database
+# 3. Extension setup (CORS, Flask-Login, Migrate) - Pag-install sa plugins
+# 4. Blueprint registration (tanan routes gikan sa backend/routes/)
+# 5. Error handler setup - Pag-setup sa error handling
 app = create_app()
 
-# ═══ START DEVELOPMENT SERVER ═══
-# This block only runs when executing 'python run.py' directly
-# (not when imported by WSGI server like Gunicorn)
+# ═══ SUGDAN ANG DEVELOPMENT SERVER (Start Development Server) ═══
+# Kini nga block modagan lang kon i-execute directly ang 'python run.py'
+# (dili modagan kon gi-import sa WSGI server sama sa Gunicorn)
 if __name__ == '__main__':
-    # Start Flask development server
-    # Parameters:
-    # - host='0.0.0.0': Listen on all network interfaces (accessible from other devices)
-    # - port=5000: Run on port 5000 (default Flask port)
-    # - debug=True: Enable auto-reload and detailed error pages (from config.py)
+    # Sugdi ang Flask development server (Start the server)
+    # Mga Parameters:
+    # - host='0.0.0.0': Maminaw sa tanan network interfaces (accessible gikan sa ubang devices)
+    # - port=5000: Modagan sa port 5000 (default Flask port)
+    # - debug=True: I-enable ang auto-reload ug detailed error pages (gikan sa config.py)
     #
-    # WARNING: This development server is NOT suitable for production
-    # Production deployment should use:
+    # PASIDAAN (WARNING): Kini nga development server DILI angay para sa production!
+    # Production deployment kinahanglan mogamit ug:
     # - Gunicorn: gunicorn -w 4 "backend.app:create_app()"
     # - uWSGI: uwsgi --http :5000 --wsgi-file run.py --callable app
     #
-    # The server will run until you press Ctrl+C to stop it
+    # Ang server modagan hangtud mopindot ka ug Ctrl+C para pahunungon
     app.run(host='0.0.0.0', port=5000, debug=True)
