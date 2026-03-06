@@ -48,7 +48,6 @@ export default function Register() {
         <div className="form-page">
             <div className="form-container">
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <IoRestaurantOutline style={{ fontSize: '4rem', color: 'var(--primary)', marginBottom: '1rem' }} />
                     <h1 className="form-title">Join ProCook</h1>
                     <p className="form-subtitle">Create your account and start cooking</p>
                 </div>
@@ -128,7 +127,6 @@ export default function Register() {
                     </div>
 
                     <button type="submit" className="form-button" disabled={loading}>
-                        <IoPersonAddOutline style={{ fontSize: '1.3rem' }} />
                         {loading ? 'Creating Account...' : 'Create Account'}
                     </button>
                 </form>
