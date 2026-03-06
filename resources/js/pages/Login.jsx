@@ -44,7 +44,6 @@ export default function Login() {
         <div className="form-page">
             <div className="form-container">
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <IoRestaurantOutline style={{ fontSize: '4rem', color: 'var(--primary)', marginBottom: '1rem' }} />
                     <h1 className="form-title">Welcome Back</h1>
                     <p className="form-subtitle">Please login to your account</p>
                 </div>
@@ -109,7 +108,6 @@ export default function Login() {
                     </div>
 
                     <button type="submit" className="form-button" disabled={loading}>
-                        <IoLogInOutline style={{ fontSize: '1.3rem' }} />
                         {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
