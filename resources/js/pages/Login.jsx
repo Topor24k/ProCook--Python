@@ -43,7 +43,7 @@ export default function Login() {
     return (
         <div className="form-page">
             <div className="form-container">
-                <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <IoRestaurantOutline style={{ fontSize: '4rem', color: 'var(--primary)', marginBottom: '1rem' }} />
                     <h1 className="form-title">Welcome Back</h1>
                     <p className="form-subtitle">Please login to your account</p>
@@ -51,7 +51,7 @@ export default function Login() {
 
                 {success && (
                     <div className="success-message">
-                        <IoCheckmarkCircleOutline style={{ fontSize: '1.5rem', marginRight: '0.5rem' }} />
+                        <IoCheckmarkCircleOutline style={{ fontSize: '1.5rem', flexShrink: 0 }} />
                         <div>
                             <strong>Login Successful!</strong>
                             <p style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>Welcome back! Redirecting you...</p>
@@ -80,7 +80,7 @@ export default function Login() {
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label className="form-label">
-                            <IoMailOutline style={{ fontSize: '1.1rem', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                            <IoMailOutline style={{ fontSize: '1.1rem' }} />
                             Email Address
                         </label>
                         <input
@@ -95,7 +95,7 @@ export default function Login() {
 
                     <div className="form-group">
                         <label className="form-label">
-                            <IoLockClosedOutline style={{ fontSize: '1.1rem', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                            <IoLockClosedOutline style={{ fontSize: '1.1rem' }} />
                             Password
                         </label>
                         <input
