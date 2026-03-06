@@ -80,10 +80,7 @@ export default function Recipes() {
         <div className="recipes-page container">
             {/* Page Header */}
             <div className="page-header">
-                <h1 className="page-title">
-                    <IoGridOutline style={{ fontSize: '3rem', marginRight: '1rem', verticalAlign: 'middle', color: 'var(--primary)' }} />
-                    Recipe Collection
-                </h1>
+                <h1 className="page-title">Recipe Collection</h1>
                 <p className="page-subtitle">
                     Discover delicious recipes from our community of passionate cooks
                 </p>
