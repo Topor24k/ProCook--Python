@@ -56,10 +56,7 @@ export default function SavedRecipes() {
     return (
         <div className="recipes-page container">
             <div className="page-header">
-                <h1 className="page-title">
-                    <IoBookmarkOutline style={{ fontSize: '3rem', marginRight: '1rem', verticalAlign: 'middle', color: 'var(--primary)' }} />
-                    Saved Recipes
-                </h1>
+                <h1 className="page-title">Saved Recipes</h1>
                 <p className="page-subtitle">
                     Your collection of favorite recipes from the community
                 </p>
