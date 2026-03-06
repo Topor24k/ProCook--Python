@@ -147,10 +147,7 @@ export default function Layout() {
             <footer className="modern-footer">
                 <div className="footer-content">
                     <div className="footer-section">
-                        <h3>
-                            <IoRestaurantOutline style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }} />
-                            ProCook
-                        </h3>
+                        <h3>ProCook</h3>
                         <p>Discover, create, and share amazing recipes with food lovers worldwide. Join our community of passionate cooks and culinary enthusiasts.</p>
                         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                             <a href="#" style={{ fontSize: '1.5rem', display: 'inline' }}>
