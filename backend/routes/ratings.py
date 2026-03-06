@@ -1,14 +1,68 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# RATING ROUTES - CRUD Operations for Recipe Ratings
+# ═══════════════════════════════════════════════════════════════════════════
+# This file demonstrates:
+# 1. UPSERT PATTERN: CREATE or UPDATE rating in one operation
+# 2. AGGREGATE FUNCTIONS: Calculate average rating using SQL AVG()
+# 3. UNIQUE CONSTRAINTS: One rating per user per recipe
+# 4. BUSINESS LOGIC: Prevent users from rating their own recipes
+# 5. TRANSACTIONAL OPERATIONS: Database commits with rollback
+#
+# Connects to:
+# - backend/models.py: Rating and Recipe models
+# - backend/app.py: Registered as ratings_bp with /api/recipes prefix
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Import Flask utilities
 from flask import Blueprint, request, jsonify
+
+# Import Flask-Login for authentication
 from flask_login import login_required, current_user
+
+# Import database models
+# Connects to: backend/models.py for Rating and Recipe classes
 from backend.models import db, Rating, Recipe
 
+# Create Blueprint - groups rating-related routes
+# Registered in: backend/app.py with url_prefix='/api/recipes'
 ratings_bp = Blueprint('ratings', __name__)
 
 
-# ── Submit / update rating ──
+# ═══════════════════════════════════════════════════════════════════════════
+# CREATE/UPDATE OPERATION: Submit or Update Rating (UPSERT)
+# ═══════════════════════════════════════════════════════════════════════════
+# CRUD: CREATE or UPDATE - Upsert rating (insert or update if exists)
+# HTTP Method: POST
+# URL: /api/recipes/<recipe_id>/rating
+# Authentication: Required (@login_required)
+# Demonstrates: UPSERT PATTERN, AGGREGATE FUNCTIONS, BUSINESS LOGIC
+# ═══════════════════════════════════════════════════════════════════════════
+
 @ratings_bp.route('/<int:recipe_id>/rating', methods=['POST'])
-@login_required
+@login_required  # Must be logged in to rate
 def store(recipe_id):
+    """
+    CREATE/UPDATE Operation: Rate a recipe (UPSERT pattern)
+    
+    This demonstrates:
+    - UPSERT PATTERN: Updates existing rating or creates new one
+    - BUSINESS LOGIC: Prevents self-rating (can't rate own recipe)
+    - AGGREGATE FUNCTIONS: Calculates AVG rating using SQL
+    - UNIQUE CONSTRAINT: One rating per user per recipe (in model)
+    - TRANSACTIONAL COMMIT: Saves rating to database
+    
+    Process:
+    1. Verify recipe exists
+    2. Prevent user from rating own recipe (business rule)
+    3. Validate rating value (1-5)
+    4. Check if user already rated (UPDATE) or not (CREATE)
+    5. Calculate updated average rating using SQL AVG()
+    6. COMMIT transaction
+    
+    Request Body: { "rating": 1-5 }
+    
+    Returns: JSON with rating and updated statistics
+    """
     try:
         recipe = Recipe.query.get(recipe_id)
         if not recipe:
