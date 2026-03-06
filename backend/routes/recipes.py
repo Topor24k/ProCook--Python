@@ -1,16 +1,68 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# RECIPE ROUTES - Full CRUD Operations on Recipes
+# ═══════════════════════════════════════════════════════════════════════════
+# This file demonstrates:
+# 1. COMPLETE CRUD: CREATE (store), READ (index, show), UPDATE (update), DELETE (destroy)
+# 2. FILE UPLOAD HANDLING: Image uploads with validation and storage
+# 3. TRANSACTIONAL OPERATIONS: Database commits with rollback on failure
+# 4. RELATIONSHIP MANAGEMENT: Creating/updating recipes with related ingredients
+# 5. CASCADE OPERATIONS: Ingredients are automatically deleted/updated with recipe
+# 6. AUTHORIZATION: Users can only edit/delete their own recipes
+#
+# Connects to:
+# - backend/models.py: Recipe and Ingredient models
+# - backend/app.py: Registered as recipes_bp with /api/recipes prefix
+# - Frontend: React components consume these APIs
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Import os for file system operations (file paths, directory creation)
 import os
+
+# Import json for parsing JSON strings from FormData
 import json
+
+# Import uuid for generating unique filenames (prevents collisions)
 import uuid
+
+# Import time for timestamp-based filenames
 import time
+
+# Import Flask utilities
 from flask import Blueprint, request, jsonify, current_app
+
+# Import Flask-Login for authentication
 from flask_login import login_required, current_user
+
+# Import database models
+# Connects to: backend/models.py for Recipe and Ingredient classes
 from backend.models import db, Recipe, Ingredient
 
+# Create Blueprint object - groups recipe-related routes
+# Registered in: backend/app.py with app.register_blueprint(recipes_bp, url_prefix='/api/recipes')
 recipes_bp = Blueprint('recipes', __name__)
 
 
-# ── Validation helper ──
+# ═══════════════════════════════════════════════════════════════════════════
+# HELPER FUNCTION: Recipe Data Validation
+# ═══════════════════════════════════════════════════════════════════════════
+# This demonstrates SEPARATION OF CONCERNS: validation logic separated from routes
+# Used in: store() and update() routes for CREATE and UPDATE operations
+# ═══════════════════════════════════════════════════════════════════════════
+
 def validate_recipe_data(data, files=None):
+    """
+    Validates all recipe input data before database operations
+    
+    This demonstrates INPUT VALIDATION for data integrity
+    Prevents invalid data from reaching the database
+    
+    Parameters:
+    - data: Dictionary of recipe fields
+    - files: Optional file upload dictionary
+    
+    Returns: Dictionary of validation errors (empty if valid)
+    """
+    # Collect all validation errors in dictionary
     errors = {}
 
     title = (data.get('title') or '').strip()
@@ -90,21 +142,82 @@ def validate_recipe_data(data, files=None):
 
 
 def save_image(file):
-    """Save uploaded image and return the storage path."""
+    """
+    FILE UPLOAD HANDLER: Saves uploaded recipe image to filesystem
+    
+    This demonstrates:
+    - FILE SYSTEM OPERATIONS: Creating directories and saving files
+    - UNIQUE FILENAME GENERATION: Prevents naming collisions
+    - SECURITY: Validates file extension
+    
+    Process:
+    1. Create recipes directory if it doesn't exist
+    2. Generate unique filename (timestamp + UUID)
+    3. Save file to backend/uploads/recipes/
+    4. Return relative path for database storage
+    
+    Used in: store() (CREATE) and update() (UPDATE) routes
+    Connected to: Recipe.image field in backend/models.py
+    Served by: serve_upload() route in backend/app.py
+    
+    Returns: Relative file path (e.g., "recipes/1234567890_abc.jpg")
+    """
+    # Get upload directory from Flask config (backend/uploads/)
     upload_dir = current_app.config['UPLOAD_FOLDER']
+    
+    # Create recipes subdirectory (backend/uploads/recipes/)
     recipes_dir = os.path.join(upload_dir, 'recipes')
-    os.makedirs(recipes_dir, exist_ok=True)
+    os.makedirs(recipes_dir, exist_ok=True)  # exist_ok prevents error if already exists
 
+    # Extract file extension (jpg, png, etc.)
     ext = file.filename.rsplit('.', 1)[-1].lower()
+    
+    # Generate unique filename: timestamp + UUID (prevents naming conflicts)
+    # Example: 1709567890_a1b2c3d4e5f6.jpg
     filename = f"{int(time.time())}_{uuid.uuid4().hex}.{ext}"
+    
+    # Full filesystem path
     filepath = os.path.join(recipes_dir, filename)
+    
+    # Save uploaded file to disk
     file.save(filepath)
+    
+    # Return relative path (stored in database, served via /uploads/ route)
     return f"recipes/{filename}"
 
 
-# ── List all recipes ──
+# ═══════════════════════════════════════════════════════════════════════════
+# READ OPERATION: List All Recipes
+# ═══════════════════════════════════════════════════════════════════════════
+# CRUD: READ - Retrieves list of all recipes with author info
+# HTTP Method: GET
+# URL: /api/recipes
+# Authentication: Not required (public)
+# Connects to: Recipe model with User relationship (OOP)
+# ═══════════════════════════════════════════════════════════════════════════
+
 @recipes_bp.route('', methods=['GET'])
 def index():
+    """
+    READ Operation: Fetch all recipes from database
+    
+    This demonstrates:
+    - TRANSACTIONAL READ: SELECT query with JOIN
+    - EAGER LOADING: Loads related User data to avoid N+1 queries
+    - OOP RELATIONSHIP TRAVERSAL: Recipe.user relationship
+    - OPTIONAL PAGINATION: Supports limit parameter
+    
+    Process:
+    1. Build query withjoined User data (EAGER LOADING)
+    2. Apply optional limit for pagination
+    3. Order by creation date (newest first)
+    4. Convert Recipe objects to dictionaries
+    
+    Query Parameters:
+    - limit: Optional integer to limit results (max 100)
+    
+    Returns: JSON array of recipes with user info
+    """
     try:
         query = Recipe.query.options(
             db.joinedload(Recipe.user)
@@ -130,9 +243,38 @@ def index():
         }), 500
 
 
-# ── Show single recipe ──
+# ═══════════════════════════════════════════════════════════════════════════
+# READ OPERATION: Get Single Recipe with Details
+# ═══════════════════════════════════════════════════════════════════════════
+# CRUD: READ - Retrieves one recipe with all details and ingredients
+# HTTP Method: GET
+# URL: /api/recipes/<id>
+# Authentication: Not required (public)
+# Connects to: Recipe and Ingredient models (OOP RELATIONSHIPS)
+# ═══════════════════════════════════════════════════════════════════════════
+
 @recipes_bp.route('/<int:recipe_id>', methods=['GET'])
 def show(recipe_id):
+    """
+    READ Operation: Fetch single recipe with full details
+    
+    This demonstrates:
+    - TRANSACTIONAL READ: SELECT with multiple JOINs
+    - EAGER LOADING: Loads User and Ingredients in one query
+    - OOP RELATIONSHIPS: Traverses recipe.user and recipe.ingredients
+    - ERROR HANDLING: 404 if recipe not found
+    
+    Process:
+    1. Query database for recipe by ID
+    2. EAGER LOAD related User and Ingredients (prevents N+1)
+    3. Return 404 if not found
+    4. Convert to dictionary with all related data
+    
+    URL Parameters:
+    - recipe_id: Integer ID of recipe to retrieve
+    
+    Returns: JSON object with recipe, user, and ingredients
+    """
     try:
         recipe = Recipe.query.options(
             db.joinedload(Recipe.user),
@@ -157,10 +299,42 @@ def show(recipe_id):
         }), 500
 
 
-# ── Create recipe ──
+# ═══════════════════════════════════════════════════════════════════════════
+# CREATE OPERATION: Create New Recipe with Ingredients
+# ═══════════════════════════════════════════════════════════════════════════
+# CRUD: CREATE - Inserts new Recipe and related Ingredients
+# HTTP Method: POST
+# URL: /api/recipes
+# Authentication: Required (@login_required)
+# Connects to: Recipe and Ingredient models
+# ═══════════════════════════════════════════════════════════════════════════
+
 @recipes_bp.route('', methods=['POST'])
-@login_required
+@login_required  # Must be logged in to create recipes
 def store():
+    """
+    CREATE Operation: Create new recipe with ingredients
+    
+    This demonstrates:
+    - TRANSACTIONAL INSERT: Creates Recipe and multiple Ingredients in one transaction
+    - FILE UPLOAD HANDLING: Processes and stores recipe image
+    - OOP COMPOSITION: Recipe "has many" Ingredients
+    - ROLLBACK ON ERROR: Maintains data integrity
+    - CASCADE RELATIONSHIP: Ingredients tied to recipe
+    
+    Process:
+    1. Validate all input data (validation helper)
+    2. Handle file upload if image provided
+    3. Create Recipe object with current_user as author
+    4. Use db.session.flush() to get recipe.id
+    5. Create Ingredient objects linked to recipe
+    6. COMMIT transaction (INSERT operations)
+    7. ROLLBACK if any error occurs
+    
+    Request: multipart/form-data or JSON
+    
+    Returns: JSON with created recipe and ingredients
+    """
     try:
         # Support both JSON and FormData
         if request.content_type and 'multipart/form-data' in request.content_type:
@@ -234,10 +408,44 @@ def store():
         }), 500
 
 
-# ── Update recipe ──
+# ═══════════════════════════════════════════════════════════════════════════
+# UPDATE OPERATION: Modify Existing Recipe
+# ═══════════════════════════════════════════════════════════════════════════
+# CRUD: UPDATE - Modifies Recipe and replaces Ingredients
+# HTTP Method: PUT
+# URL: /api/recipes/<id>
+# Authentication: Required (must be recipe owner)
+# Connects to: Recipe and Ingredient models
+# ═══════════════════════════════════════════════════════════════════════════
+
 @recipes_bp.route('/<int:recipe_id>', methods=['PUT'])
-@login_required
+@login_required  # Must be logged in
 def update(recipe_id):
+    """
+    UPDATE Operation: Modify existing recipe
+    
+    This demonstrates:
+    - TRANSACTIONAL UPDATE: Modifies Recipe and replaces Ingredients
+    - AUTHORIZATION: Only recipe owner can update
+    - FILE REPLACEMENT: Deletes old image, uploads new one
+    - CASCADE DELETE: Old ingredients deleted, new ones created
+    - ROLLBACK ON ERROR: All-or-nothing transaction
+    
+    Process:
+    1. Find recipe by ID (READ)
+    2. Check ownership (AUTHORIZATION)
+    3. Validate new data
+    4. Handle image replacement if new file uploaded
+    5. Update Recipe fields
+    6. DELETE old ingredients
+    7. CREATE new ingredients
+    8. COMMIT transaction
+    
+    URL Parameters:
+    - recipe_id: ID of recipe to update
+    
+    Returns: JSON with updated recipe and ingredients
+    """
     try:
         recipe = Recipe.query.get(recipe_id)
         if not recipe:
@@ -324,10 +532,45 @@ def update(recipe_id):
         }), 500
 
 
-# ── Delete recipe ──
+# ═══════════════════════════════════════════════════════════════════════════
+# DELETE OPERATION: Remove Recipe and All Related Data
+# ═══════════════════════════════════════════════════════════════════════════
+# CRUD: DELETE - Removes Recipe with CASCADE deletion of related records
+# HTTP Method: DELETE
+# URL: /api/recipes/<id>
+# Authentication: Required (must be recipe owner)
+# Connects to: Recipe, Ingredient, Comment, Rating models (CASCADE)
+# ═══════════════════════════════════════════════════════════════════════════
+
 @recipes_bp.route('/<int:recipe_id>', methods=['DELETE'])
-@login_required
+@login_required  # Must be logged in
 def destroy(recipe_id):
+    """
+    DELETE Operation: Remove recipe and all related data
+    
+    This demonstrates:
+    - TRANSACTIONAL DELETE: Removes Recipe from database
+    - CASCADE OPERATIONS: Automatically deletes related records:
+      - All Ingredients (cascade='all, delete-orphan')
+      - All Comments (cascade='all, delete-orphan')
+      - All Ratings (cascade='all, delete-orphan')
+      - All SavedRecipes entries
+    - FILE DELETION: Removes image file from filesystem
+    - AUTHORIZATION: Only recipe owner can delete
+    - ROLLBACK ON ERROR: Maintains data integrity
+    
+    Process:
+    1. Find recipe by ID (READ)
+    2. Check ownership (AUTHORIZATION)
+    3. Delete image file from disk
+    4. Delete recipe from database (CASCADE deletes related records)
+    5. COMMIT transaction
+    
+    URL Parameters:
+    - recipe_id: ID of recipe to delete
+    
+    Returns: JSON confirmation of deletion
+    """
     try:
         recipe = Recipe.query.get(recipe_id)
         if not recipe:
