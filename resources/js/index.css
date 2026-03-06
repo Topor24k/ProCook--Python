@@ -521,8 +521,13 @@ a:hover {
 }
 
 .feature-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto var(--space-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 4rem;
-    margin-bottom: var(--space-lg);
 }
 
 .feature-card h3 {
@@ -983,8 +988,11 @@ a:hover {
 }
 
 .stat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 2.5rem;
-    margin-bottom: var(--space-sm);
+    margin: 0 auto var(--space-sm);
 }
 
 .stat-label {
@@ -1153,7 +1161,9 @@ a:hover {
 }
 
 .form-label {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--dark);
@@ -1197,6 +1207,10 @@ a:hover {
     cursor: pointer;
     transition: all var(--transition-base);
     margin-top: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .form-button:hover {
@@ -1579,7 +1593,7 @@ a:hover {
     padding: 1rem 1.25rem;
     margin-bottom: 1.5rem;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.75rem;
     animation: slideDown 0.3s ease-out;
 }
@@ -1697,8 +1711,11 @@ a:hover {
 }
 
 .empty-state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 5rem;
-    margin-bottom: var(--space-lg);
+    margin: 0 auto var(--space-lg);
     opacity: 0.5;
 }
 
