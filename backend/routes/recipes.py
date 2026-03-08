@@ -1,68 +1,16 @@
-# ═══════════════════════════════════════════════════════════════════════════
-# RECIPE ROUTES - Full CRUD Operations on Recipes
-# ═══════════════════════════════════════════════════════════════════════════
-# This file demonstrates:
-# 1. COMPLETE CRUD: CREATE (store), READ (index, show), UPDATE (update), DELETE (destroy)
-# 2. FILE UPLOAD HANDLING: Image uploads with validation and storage
-# 3. TRANSACTIONAL OPERATIONS: Database commits with rollback on failure
-# 4. RELATIONSHIP MANAGEMENT: Creating/updating recipes with related ingredients
-# 5. CASCADE OPERATIONS: Ingredients are automatically deleted/updated with recipe
-# 6. AUTHORIZATION: Users can only edit/delete their own recipes
-#
-# Connects to:
-# - backend/models.py: Recipe and Ingredient models
-# - backend/app.py: Registered as recipes_bp with /api/recipes prefix
-# - Frontend: React components consume these APIs
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Import os for file system operations (file paths, directory creation)
 import os
-
-# Import json for parsing JSON strings from FormData
 import json
-
-# Import uuid for generating unique filenames (prevents collisions)
 import uuid
-
-# Import time for timestamp-based filenames
 import time
-
-# Import Flask utilities
 from flask import Blueprint, request, jsonify, current_app
-
-# Import Flask-Login for authentication
 from flask_login import login_required, current_user
-
-# Import database models
-# Connects to: backend/models.py for Recipe and Ingredient classes
 from backend.models import db, Recipe, Ingredient
 
-# Create Blueprint object - groups recipe-related routes
-# Registered in: backend/app.py with app.register_blueprint(recipes_bp, url_prefix='/api/recipes')
 recipes_bp = Blueprint('recipes', __name__)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# HELPER FUNCTION: Recipe Data Validation
-# ═══════════════════════════════════════════════════════════════════════════
-# This demonstrates SEPARATION OF CONCERNS: validation logic separated from routes
-# Used in: store() and update() routes for CREATE and UPDATE operations
-# ═══════════════════════════════════════════════════════════════════════════
-
 def validate_recipe_data(data, files=None):
-    """
-    Validates all recipe input data before database operations
-    
-    This demonstrates INPUT VALIDATION for data integrity
-    Prevents invalid data from reaching the database
-    
-    Parameters:
-    - data: Dictionary of recipe fields
-    - files: Optional file upload dictionary
-    
-    Returns: Dictionary of validation errors (empty if valid)
-    """
-    # Collect all validation errors in dictionary
+    """Validates recipe input data before database operations"""
     errors = {}
 
     title = (data.get('title') or '').strip()
@@ -110,7 +58,6 @@ def validate_recipe_data(data, files=None):
     if preparation_notes and len(preparation_notes) < 20:
         errors['preparation_notes'] = ['Instructions must be at least 20 characters.']
 
-    # Parse ingredients
     ingredients_raw = data.get('ingredients')
     if isinstance(ingredients_raw, str):
         try:
@@ -130,7 +77,6 @@ def validate_recipe_data(data, files=None):
             if not (ing.get('measurement') or '').strip():
                 errors[f'ingredients.{i}.measurement'] = ['Ingredient measurement is required.']
 
-    # Validate image file if present
     if files and 'image' in files:
         image = files['image']
         allowed_ext = {'jpeg', 'jpg', 'png', 'gif', 'webp'}
@@ -142,201 +88,56 @@ def validate_recipe_data(data, files=None):
 
 
 def save_image(file):
-    """
-    FILE UPLOAD HANDLER: Saves uploaded recipe image to filesystem
-    
-    This demonstrates:
-    - FILE SYSTEM OPERATIONS: Creating directories and saving files
-    - UNIQUE FILENAME GENERATION: Prevents naming collisions
-    - SECURITY: Validates file extension
-    
-    Process:
-    1. Create recipes directory if it doesn't exist
-    2. Generate unique filename (timestamp + UUID)
-    3. Save file to backend/uploads/recipes/
-    4. Return relative path for database storage
-    
-    Used in: store() (CREATE) and update() (UPDATE) routes
-    Connected to: Recipe.image field in backend/models.py
-    Served by: serve_upload() route in backend/app.py
-    
-    Returns: Relative file path (e.g., "recipes/1234567890_abc.jpg")
-    """
-    # Get upload directory from Flask config (backend/uploads/)
+    """Saves uploaded image file and returns relative path for database storage"""
     upload_dir = current_app.config['UPLOAD_FOLDER']
-    
-    # Create recipes subdirectory (backend/uploads/recipes/)
     recipes_dir = os.path.join(upload_dir, 'recipes')
-    os.makedirs(recipes_dir, exist_ok=True)  # exist_ok prevents error if already exists
-
-    # Extract file extension (jpg, png, etc.)
+    os.makedirs(recipes_dir, exist_ok=True)
     ext = file.filename.rsplit('.', 1)[-1].lower()
-    
-    # Generate unique filename: timestamp + UUID (prevents naming conflicts)
-    # Example: 1709567890_a1b2c3d4e5f6.jpg
     filename = f"{int(time.time())}_{uuid.uuid4().hex}.{ext}"
-    
-    # Full filesystem path
     filepath = os.path.join(recipes_dir, filename)
-    
-    # Save uploaded file to disk
     file.save(filepath)
-    
-    # Return relative path (stored in database, served via /uploads/ route)
     return f"recipes/{filename}"
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# READ OPERATION: List All Recipes
-# ═══════════════════════════════════════════════════════════════════════════
-# CRUD: READ - Retrieves list of all recipes with author info
-# HTTP Method: GET
-# URL: /api/recipes
-# Authentication: Not required (public)
-# Connects to: Recipe model with User relationship (OOP)
-# ═══════════════════════════════════════════════════════════════════════════
-
+# CRUD READ: retrieves all recipes from database with author relationship
 @recipes_bp.route('', methods=['GET'])
 def index():
-    """
-    READ Operation: Fetch all recipes from database
-    
-    This demonstrates:
-    - TRANSACTIONAL READ: SELECT query with JOIN
-    - EAGER LOADING: Loads related User data to avoid N+1 queries
-    - OOP RELATIONSHIP TRAVERSAL: Recipe.user relationship
-    - OPTIONAL PAGINATION: Supports limit parameter
-    
-    Process:
-    1. Build query withjoined User data (EAGER LOADING)
-    2. Apply optional limit for pagination
-    3. Order by creation date (newest first)
-    4. Convert Recipe objects to dictionaries
-    
-    Query Parameters:
-    - limit: Optional integer to limit results (max 100)
-    
-    Returns: JSON array of recipes with user info
-    """
     try:
-        query = Recipe.query.options(
-            db.joinedload(Recipe.user)
-        )
-
+        query = Recipe.query.options(db.joinedload(Recipe.user))
         limit = request.args.get('limit')
         if limit:
             limit = min(int(limit), 100)
             query = query.limit(limit)
-
         recipes = query.order_by(Recipe.created_at.desc()).all()
-
         return jsonify({
             'success': True,
             'data': [r.to_dict(include_user=True) for r in recipes],
             'count': len(recipes)
         })
-
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch recipes.'
-        }), 500
+        return jsonify({'success': False, 'message': 'Failed to fetch recipes.'}), 500
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# READ OPERATION: Get Single Recipe with Details
-# ═══════════════════════════════════════════════════════════════════════════
-# CRUD: READ - Retrieves one recipe with all details and ingredients
-# HTTP Method: GET
-# URL: /api/recipes/<id>
-# Authentication: Not required (public)
-# Connects to: Recipe and Ingredient models (OOP RELATIONSHIPS)
-# ═══════════════════════════════════════════════════════════════════════════
-
+# CRUD READ: retrieves single recipe with related ingredients and author
 @recipes_bp.route('/<int:recipe_id>', methods=['GET'])
 def show(recipe_id):
-    """
-    READ Operation: Fetch single recipe with full details
-    
-    This demonstrates:
-    - TRANSACTIONAL READ: SELECT with multiple JOINs
-    - EAGER LOADING: Loads User and Ingredients in one query
-    - OOP RELATIONSHIPS: Traverses recipe.user and recipe.ingredients
-    - ERROR HANDLING: 404 if recipe not found
-    
-    Process:
-    1. Query database for recipe by ID
-    2. EAGER LOAD related User and Ingredients (prevents N+1)
-    3. Return 404 if not found
-    4. Convert to dictionary with all related data
-    
-    URL Parameters:
-    - recipe_id: Integer ID of recipe to retrieve
-    
-    Returns: JSON object with recipe, user, and ingredients
-    """
     try:
         recipe = Recipe.query.options(
             db.joinedload(Recipe.user),
             db.joinedload(Recipe.ingredients),
         ).get(recipe_id)
-
         if not recipe:
-            return jsonify({
-                'success': False,
-                'message': 'Recipe not found.'
-            }), 404
-
-        return jsonify({
-            'success': True,
-            'data': recipe.to_dict(include_ingredients=True, include_user=True)
-        })
-
+            return jsonify({'success': False, 'message': 'Recipe not found.'}), 404
+        return jsonify({'success': True, 'data': recipe.to_dict(include_ingredients=True, include_user=True)})
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch recipe details.'
-        }), 500
+        return jsonify({'success': False, 'message': 'Failed to fetch recipe details.'}), 500
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# CREATE OPERATION: Create New Recipe with Ingredients
-# ═══════════════════════════════════════════════════════════════════════════
-# CRUD: CREATE - Inserts new Recipe and related Ingredients
-# HTTP Method: POST
-# URL: /api/recipes
-# Authentication: Required (@login_required)
-# Connects to: Recipe and Ingredient models
-# ═══════════════════════════════════════════════════════════════════════════
-
+# CRUD CREATE: inserts new recipe with related ingredients into database
 @recipes_bp.route('', methods=['POST'])
-@login_required  # Must be logged in to create recipes
+@login_required
 def store():
-    """
-    CREATE Operation: Create new recipe with ingredients
-    
-    This demonstrates:
-    - TRANSACTIONAL INSERT: Creates Recipe and multiple Ingredients in one transaction
-    - FILE UPLOAD HANDLING: Processes and stores recipe image
-    - OOP COMPOSITION: Recipe "has many" Ingredients
-    - ROLLBACK ON ERROR: Maintains data integrity
-    - CASCADE RELATIONSHIP: Ingredients tied to recipe
-    
-    Process:
-    1. Validate all input data (validation helper)
-    2. Handle file upload if image provided
-    3. Create Recipe object with current_user as author
-    4. Use db.session.flush() to get recipe.id
-    5. Create Ingredient objects linked to recipe
-    6. COMMIT transaction (INSERT operations)
-    7. ROLLBACK if any error occurs
-    
-    Request: multipart/form-data or JSON
-    
-    Returns: JSON with created recipe and ingredients
-    """
     try:
-        # Support both JSON and FormData
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = request.form.to_dict()
             files = request.files
@@ -346,18 +147,12 @@ def store():
 
         errors = validate_recipe_data(data, files)
         if errors:
-            return jsonify({
-                'success': False,
-                'message': 'Recipe validation failed',
-                'errors': errors
-            }), 422
+            return jsonify({'success': False, 'message': 'Recipe validation failed', 'errors': errors}), 422
 
-        # Parse ingredients
         ingredients_raw = data.get('ingredients')
         if isinstance(ingredients_raw, str):
             ingredients_raw = json.loads(ingredients_raw)
 
-        # Handle image upload
         image_path = None
         if files and 'image' in files:
             image_path = save_image(files['image'])
@@ -365,6 +160,7 @@ def store():
         prep_time = int(data['prep_time'])
         cook_time = int(data['cook_time'])
 
+        # CRUD CREATE: creates Recipe object and adds to database session
         recipe = Recipe(
             user_id=current_user.id,
             title=data['title'].strip(),
@@ -379,8 +175,9 @@ def store():
             preparation_notes=(data.get('preparation_notes') or '').strip() or None,
         )
         db.session.add(recipe)
-        db.session.flush()  # Get recipe.id
+        db.session.flush()  # Get recipe.id before committing
 
+        # OOP: creates related Ingredient objects linked to recipe through foreign key
         for i, ing in enumerate(ingredients_raw):
             ingredient = Ingredient(
                 recipe_id=recipe.id,
@@ -392,75 +189,28 @@ def store():
             )
             db.session.add(ingredient)
 
-        db.session.commit()
-
+        db.session.commit()  # CRUD CREATE: commits transaction to database
         return jsonify({
             'success': True,
             'message': 'Recipe created successfully!',
             'data': recipe.to_dict(include_ingredients=True)
         }), 201
-
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Failed to create recipe. Please try again.'
-        }), 500
+        return jsonify({'success': False, 'message': 'Failed to create recipe. Please try again.'}), 500
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# UPDATE OPERATION: Modify Existing Recipe
-# ═══════════════════════════════════════════════════════════════════════════
-# CRUD: UPDATE - Modifies Recipe and replaces Ingredients
-# HTTP Method: PUT
-# URL: /api/recipes/<id>
-# Authentication: Required (must be recipe owner)
-# Connects to: Recipe and Ingredient models
-# ═══════════════════════════════════════════════════════════════════════════
-
+# CRUD UPDATE: modifies existing recipe and replaces ingredients
 @recipes_bp.route('/<int:recipe_id>', methods=['PUT'])
-@login_required  # Must be logged in
+@login_required
 def update(recipe_id):
-    """
-    UPDATE Operation: Modify existing recipe
-    
-    This demonstrates:
-    - TRANSACTIONAL UPDATE: Modifies Recipe and replaces Ingredients
-    - AUTHORIZATION: Only recipe owner can update
-    - FILE REPLACEMENT: Deletes old image, uploads new one
-    - CASCADE DELETE: Old ingredients deleted, new ones created
-    - ROLLBACK ON ERROR: All-or-nothing transaction
-    
-    Process:
-    1. Find recipe by ID (READ)
-    2. Check ownership (AUTHORIZATION)
-    3. Validate new data
-    4. Handle image replacement if new file uploaded
-    5. Update Recipe fields
-    6. DELETE old ingredients
-    7. CREATE new ingredients
-    8. COMMIT transaction
-    
-    URL Parameters:
-    - recipe_id: ID of recipe to update
-    
-    Returns: JSON with updated recipe and ingredients
-    """
     try:
         recipe = Recipe.query.get(recipe_id)
         if not recipe:
-            return jsonify({
-                'success': False,
-                'message': 'Recipe not found.'
-            }), 404
-
+            return jsonify({'success': False, 'message': 'Recipe not found.'}), 404
         if recipe.user_id != current_user.id:
-            return jsonify({
-                'success': False,
-                'message': 'You do not have permission to edit this recipe.'
-            }), 403
+            return jsonify({'success': False, 'message': 'You do not have permission to edit this recipe.'}), 403
 
-        # Support both JSON and FormData
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = request.form.to_dict()
             files = request.files
@@ -470,20 +220,13 @@ def update(recipe_id):
 
         errors = validate_recipe_data(data, files)
         if errors:
-            return jsonify({
-                'success': False,
-                'message': 'Recipe validation failed',
-                'errors': errors
-            }), 422
+            return jsonify({'success': False, 'message': 'Recipe validation failed', 'errors': errors}), 422
 
-        # Parse ingredients
         ingredients_raw = data.get('ingredients')
         if isinstance(ingredients_raw, str):
             ingredients_raw = json.loads(ingredients_raw)
 
-        # Handle image upload
         if files and 'image' in files:
-            # Delete old image
             if recipe.image:
                 old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], recipe.image)
                 if os.path.exists(old_path):
@@ -493,6 +236,7 @@ def update(recipe_id):
         prep_time = int(data['prep_time'])
         cook_time = int(data['cook_time'])
 
+        # CRUD UPDATE: modifies Recipe object fields
         recipe.title = data['title'].strip()
         recipe.short_description = data['short_description'].strip()
         recipe.cuisine_type = data['cuisine_type'].strip()
@@ -503,7 +247,7 @@ def update(recipe_id):
         recipe.serving_size = int(data['serving_size'])
         recipe.preparation_notes = (data.get('preparation_notes') or '').strip() or None
 
-        # Replace ingredients
+        # CRUD DELETE then CREATE: removes old ingredients and creates new ones
         Ingredient.query.filter_by(recipe_id=recipe.id).delete()
         for i, ing in enumerate(ingredients_raw):
             ingredient = Ingredient(
@@ -516,113 +260,36 @@ def update(recipe_id):
             )
             db.session.add(ingredient)
 
-        db.session.commit()
-
+        db.session.commit()  # CRUD UPDATE: commits changes to database
         return jsonify({
             'success': True,
             'message': 'Recipe updated successfully!',
             'data': recipe.to_dict(include_ingredients=True)
         })
-
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Failed to update recipe. Please try again.'
-        }), 500
+        return jsonify({'success': False, 'message': 'Failed to update recipe. Please try again.'}), 500
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# DELETE OPERATION: Remove Recipe and All Related Data
-# ═══════════════════════════════════════════════════════════════════════════
-# CRUD: DELETE - Removes Recipe with CASCADE deletion of related records
-# HTTP Method: DELETE
-# URL: /api/recipes/<id>
-# Authentication: Required (must be recipe owner)
-# Connects to: Recipe, Ingredient, Comment, Rating models (CASCADE)
-# ═══════════════════════════════════════════════════════════════════════════
-
+# CRUD DELETE: removes recipe from database (CASCADE deletes related ingredients, comments, ratings)
 @recipes_bp.route('/<int:recipe_id>', methods=['DELETE'])
-@login_required  # Must be logged in
+@login_required
 def destroy(recipe_id):
-    """
-    DELETE Operation: Remove recipe and all related data
-    
-    This demonstrates:
-    - TRANSACTIONAL DELETE: Removes Recipe from database
-    - CASCADE OPERATIONS: Automatically deletes related records:
-      - All Ingredients (cascade='all, delete-orphan')
-      - All Comments (cascade='all, delete-orphan')
-      - All Ratings (cascade='all, delete-orphan')
-      - All SavedRecipes entries
-    - FILE DELETION: Removes image file from filesystem
-    - AUTHORIZATION: Only recipe owner can delete
-    - ROLLBACK ON ERROR: Maintains data integrity
-    
-    Process:
-    1. Find recipe by ID (READ)
-    2. Check ownership (AUTHORIZATION)
-    3. Delete image file from disk
-    4. Delete recipe from database (CASCADE deletes related records)
-    5. COMMIT transaction
-    
-    URL Parameters:
-    - recipe_id: ID of recipe to delete
-    
-    Returns: JSON confirmation of deletion
-    """
     try:
         recipe = Recipe.query.get(recipe_id)
         if not recipe:
-            return jsonify({
-                'success': False,
-                'message': 'Recipe not found.'
-            }), 404
-
+            return jsonify({'success': False, 'message': 'Recipe not found.'}), 404
         if recipe.user_id != current_user.id:
-            return jsonify({
-                'success': False,
-                'message': 'You do not have permission to delete this recipe.'
-            }), 403
+            return jsonify({'success': False, 'message': 'You do not have permission to delete this recipe.'}), 403
 
-        # Delete image file
         if recipe.image:
-            old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], recipe.image)
-            if os.path.exists(old_path):
-                os.remove(old_path)
+            image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], recipe.image)
+            if os.path.exists(image_path):
+                os.remove(image_path)
 
-        db.session.delete(recipe)
+        db.session.delete(recipe)  # CRUD DELETE: removes recipe (CASCADE deletes related records)
         db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'message': 'Recipe deleted successfully.'
-        })
-
+        return jsonify({'success': True, 'message': 'Recipe deleted successfully.'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Failed to delete recipe. Please try again.'
-        }), 500
-
-
-# ── My recipes ──
-@recipes_bp.route('/my-recipes', methods=['GET'])
-@login_required
-def my_recipes():
-    try:
-        recipes = Recipe.query.filter_by(user_id=current_user.id)\
-            .order_by(Recipe.created_at.desc()).all()
-
-        return jsonify({
-            'success': True,
-            'data': [r.to_dict(include_ingredients=True) for r in recipes],
-            'count': len(recipes)
-        })
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch your recipes.'
-        }), 500
+        return jsonify({'success': False, 'message': 'Failed to delete recipe. Please try again.'}), 500
