@@ -19,7 +19,8 @@ export function AuthProvider({ children }) {
         try {
             const response = await api.get('/user');
             // Handle new API response format with success/data wrapper
-            setUser(response.data.data || response.data);
+            // Extract the user object from the nested data structure
+            setUser(response.data.data?.user || response.data.user || response.data);
         } catch (error) {
             // 401 is expected when user is not authenticated - handle silently
             if (error.response?.status === 401) {
