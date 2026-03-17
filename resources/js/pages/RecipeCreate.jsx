@@ -154,6 +154,21 @@ export default function RecipeCreate() {
                     <h1 className="form-title">Share Your Recipe</h1>
                     <p className="form-subtitle">Create a new recipe and share it with the community</p>
                 </div>
+
+                {/* General Error Banner */}
+                {Object.keys(errors).length > 0 && (
+                    <div style={{ 
+                        background: '#FEE2E2', 
+                        border: '1px solid #FCA5A5', 
+                        padding: '1rem 1.25rem', 
+                        borderRadius: 'var(--radius-md)', 
+                        marginBottom: '1.5rem', 
+                        color: 'var(--danger)', 
+                        fontSize: '0.9rem'
+                    }}>
+                        <strong>Validation Failed:</strong> Please fix the highlighted errors below.
+                    </div>
+                )}
                 
                 <form onSubmit={handleSubmit}>
                     {/* Basic Information */}
@@ -180,6 +195,7 @@ export default function RecipeCreate() {
                             rows="3"
                             required
                         />
+                        {errors.short_description && <div className="error-message">{errors.short_description[0]}</div>}
                     </div>
 
                     {/* Image Upload Section */}
@@ -229,6 +245,7 @@ export default function RecipeCreate() {
                                 placeholder="e.g., Filipino"
                                 required
                             />
+                            {errors.cuisine_type && <div className="error-message">{errors.cuisine_type[0]}</div>}
                         </div>
                         <div className="form-group">
                             <label className="form-label">Category *</label>
@@ -240,6 +257,7 @@ export default function RecipeCreate() {
                                 placeholder="e.g., Ulam (Main Dish)"
                                 required
                             />
+                            {errors.category && <div className="error-message">{errors.category[0]}</div>}
                         </div>
                     </div>
 
@@ -257,6 +275,7 @@ export default function RecipeCreate() {
                                 placeholder="15"
                                 required
                             />
+                            {errors.prep_time && <div className="error-message">{errors.prep_time[0]}</div>}
                         </div>
                         <div className="form-group">
                             <label className="form-label">
@@ -271,6 +290,7 @@ export default function RecipeCreate() {
                                 placeholder="30"
                                 required
                             />
+                            {errors.cook_time && <div className="error-message">{errors.cook_time[0]}</div>}
                         </div>
                         <div className="form-group">
                             <label className="form-label">
@@ -285,6 +305,7 @@ export default function RecipeCreate() {
                                 placeholder="4"
                                 required
                             />
+                            {errors.serving_size && <div className="error-message">{errors.serving_size[0]}</div>}
                         </div>
                     </div>
 
@@ -305,6 +326,7 @@ export default function RecipeCreate() {
                             <IoRestaurantOutline style={{ color: 'var(--primary)' }} />
                             Ingredients
                         </h3>
+                        {errors.ingredients && <div className="error-message" style={{ marginBottom: 'var(--space-md)' }}>{errors.ingredients[0]}</div>}
                         {formData.ingredients.map((ingredient, index) => (
                             <div key={index} style={{ 
                                 background: 'var(--white)', 
@@ -351,6 +373,7 @@ export default function RecipeCreate() {
                                             placeholder="e.g., Soy Sauce (Toyo)"
                                             required
                                         />
+                                        {errors[`ingredients.${index}.name`] && <div className="error-message">{errors[`ingredients.${index}.name`][0]}</div>}
                                     </div>
                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                         <label className="form-label">Measurement *</label>
@@ -366,6 +389,7 @@ export default function RecipeCreate() {
                                             placeholder="e.g., 1/2 cup"
                                             required
                                         />
+                                        {errors[`ingredients.${index}.measurement`] && <div className="error-message">{errors[`ingredients.${index}.measurement`][0]}</div>}
                                     </div>
                                 </div>
                             </div>
@@ -392,6 +416,7 @@ export default function RecipeCreate() {
                             placeholder="Step-by-step instructions (e.g., 1. Marinate chicken with toyo and suka for 30 minutes. 2. Sauté garlic in hot oil until golden brown...)"
                             style={{ minHeight: '250px' }}
                         />
+                        {errors.preparation_notes && <div className="error-message">{errors.preparation_notes[0]}</div>}
                     </div>
 
                     {/* Action Buttons */}
