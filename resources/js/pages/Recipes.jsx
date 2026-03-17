@@ -25,6 +25,14 @@ export default function Recipes() {
     const { requireAuth, showAuthPrompt, hideAuthPrompt } = useAuthGuard();
     const navigate = useNavigate();
 
+    // Helper function to limit description to 2 sentences
+    const limitToTwoSentences = (text) => {
+        if (!text) return '';
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        const twoSentences = sentences.slice(0, 2).join(' ').trim();
+        return twoSentences + (sentences.length > 2 ? '...' : '');
+    };
+
     useEffect(() => {
         fetchRecipes();
     }, []);
@@ -195,7 +203,7 @@ export default function Recipes() {
                                     </div>
                                 </div>
                                 <p className="recipe-description">
-                                    {recipe.short_description}
+                                    {limitToTwoSentences(recipe.short_description)}
                                 </p>
                                 <div className="recipe-meta">
                                     <span className="meta-item">
