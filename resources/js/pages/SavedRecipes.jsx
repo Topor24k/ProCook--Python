@@ -19,6 +19,14 @@ export default function SavedRecipes() {
     const [recipes, setRecipes] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Helper function to limit description to 2 sentences
+    const limitToTwoSentences = (text) => {
+        if (!text) return '';
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        const twoSentences = sentences.slice(0, 2).join(' ').trim();
+        return twoSentences + (sentences.length > 2 ? '...' : '');
+    };
+
     useEffect(() => {
         if (!user) {
             navigate('/login');
@@ -117,8 +125,7 @@ export default function SavedRecipes() {
                                     </div>
                                 </div>
                                 <p className="recipe-description">
-                                    {recipe.short_description?.substring(0, 100)}
-                                    {recipe.short_description?.length > 100 && '...'}
+                                    {limitToTwoSentences(recipe.short_description)}
                                 </p>
                                 <div className="recipe-meta">
                                     <span className="meta-item">
